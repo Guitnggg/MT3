@@ -2,7 +2,7 @@
 #include <Vector3.h>
 #include <math.h>
 
-const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3_01";
+const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
 // 加算
 Vector3 Add(const Vector3& v1, const Vector3& v2)
