@@ -11,20 +11,62 @@ struct Matrix4x4
 // 1.平行移動行列
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate)
 {
+	Matrix4x4 translateMatrix;
+	translateMatrix.m[0][0] = 1.0f; translateMatrix.m[0][1] = 0.0f; translateMatrix.m[0][2] = 0.0f; translateMatrix.m[0][3] = translate.x;
+	translateMatrix.m[1][0] = 0.0f; translateMatrix.m[1][1] = 1.0f; translateMatrix.m[1][2] = 0.0f; translateMatrix.m[1][3] = translate.y;
+	translateMatrix.m[2][0] = 0.0f; translateMatrix.m[2][1] = 0.0f; translateMatrix.m[2][2] = 1.0f; translateMatrix.m[2][3] = translate.z;
+	translateMatrix.m[3][0] = 0.0f; translateMatrix.m[3][1] = 0.0f; translateMatrix.m[3][2] = 0.0f; translateMatrix.m[3][3] = 1.0f;
 
+	return translateMatrix;
 }
+
 
 // 2.拡大縮小行列
 Matrix4x4 MakeScaleMatrix(const Vector3& scale)
 {
+	Matrix4x4 scaleMatrix;
+	scaleMatrix.m[0][0] = scale.x; scaleMatrix.m[0][1] = 0.0f;      scaleMatrix.m[0][2] = 0.0f;      scaleMatrix.m[0][3] = 0.0f;
+	scaleMatrix.m[1][0] = 0.0f;      scaleMatrix.m[1][1] = scale.y; scaleMatrix.m[1][2] = 0.0f;      scaleMatrix.m[1][3] = 0.0f;
+	scaleMatrix.m[2][0] = 0.0f;      scaleMatrix.m[2][1] = 0.0f;      scaleMatrix.m[2][2] = scale.z; scaleMatrix.m[2][3] = 0.0f;
+	scaleMatrix.m[3][0] = 0.0f;      scaleMatrix.m[3][1] = 0.0f;      scaleMatrix.m[3][2] = 0.0f;      scaleMatrix.m[3][3] = 1.0f;
 
+	return scaleMatrix;
 }
+
 
 // 3.座標変換
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix)
 {
+	Vector3 transformed;
+	transformed.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + matrix.m[3][0];
+	transformed.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + matrix.m[3][1];
+	transformed.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + matrix.m[3][2];
 
+	return transformed;
 }
+
+
+
+// 描画
+static const int kRowHeight = 20;
+static const int kColumnWidth = 60;
+
+void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label)
+{
+	Novice::ScreenPrintf(x, y, "%s: (%.2f, %.2f, %.2f)", label, vector.x, vector.y, vector.z);
+}
+
+void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix, const char* label)
+{
+	for (int row = 0; row < 4; row++)
+	{
+		for (int column = 0; column < 4; column++)
+		{
+			Novice::ScreenPrintf(x + column * kColumnWidth, y + row * kRowHeight, "%s[%d][%d]: %6.02f", label, row, column, matrix.m[row][column]);
+		}
+	}
+}
+
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -76,7 +118,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		
+		VectorScreenPrintf(0, 0, trasnformed, "transformed");
+		MatrixScreenPrintf(0, 0, translateMatrix, "translateMatrix");
+		MatrixScreenPrintf(0, kRowHeight * 5, scaleMatrix, "scsleMatrix");
 
 		///
 		/// ↑描画処理ここまで
