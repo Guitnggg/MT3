@@ -63,7 +63,9 @@ Matrix4x4 Multiply(Matrix4x4 matrix1, Matrix4x4 matrix2)
 // 4.逆行列
 //Matrix4x4 Inverse(const Matrix4x4& m)
 //{
+//	Matrix4x4 result;
 //
+//	return result;
 //}
 
 // 5.転置行列
@@ -174,8 +176,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/*MatrixScreenPrintf(0, kRowHeight * 5 * 3, inverseM1);
 		MatrixScreenPrintf(0, kRowHeight * 5 * 4, inverseM2);*/
 		MatrixScreenPrintf(kColumnWidth * 5, 0, transposeM1);
-		MatrixScreenPrintf(kColumnWidth * 5 * 2, kRowHeight * 5, transposeM2);
-		MatrixScreenPrintf(kColumnWidth * 5 * 3, kRowHeight * 5 * 2, identity);
+		MatrixScreenPrintf(kColumnWidth * 5, kRowHeight * 5, transposeM2);
+		MatrixScreenPrintf(kColumnWidth * 5, kRowHeight * 5 * 2, identity);
 
 		///
 		/// ↑描画処理ここまで
