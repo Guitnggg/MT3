@@ -5,6 +5,11 @@
 
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
+// Vector3の定義
+struct Vector3 {
+    float x, y, z;
+};
+
 // 3次元アフィン変換行列
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
     // スケーリング行列
@@ -57,6 +62,19 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Ve
     Matrix4x4 worldMatrix = scaleMatrix * rotateZMatrix * rotateYMatrix * rotateXMatrix * translateMatrix;
     return worldMatrix;
 }
+
+static const int kRowHeight = 20;
+static const int kColumnWidth = 60;
+
+void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix, const char* label) {
+    Novice::ScreenPrintf(x, y, "%s", label);
+    for (int row = 0; row < 4; row++) {
+        for (int column = 0; column < 4; column++) {
+            Novice::ScreenPrintf(x + column * kColumnWidth, y + (row + 1) * kRowHeight, "%6.02f", matrix.m[row][column]);
+        }
+    }
+}
+
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
