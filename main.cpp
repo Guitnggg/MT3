@@ -1,4 +1,7 @@
 #include <Novice.h>
+#include <Vector3.h>
+#include <Matrix4x4.h>
+#include <cmath>
 
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
