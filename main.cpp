@@ -58,6 +58,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
+		MatrixScreenPrintf(0, 0, rotateXMatrix, "rotateXMatrix");
+
 		///
 		/// ↑描画処理ここまで
 		///
