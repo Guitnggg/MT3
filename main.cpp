@@ -6,9 +6,16 @@
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
 // クロス積
-Vector3 Cross(const Vector3& v1, const Vector3& v2);
+Vector3 Cross(const Vector3& v1, const Vector3& v2)
+{
 
-Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate);
+}
+
+Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate)
+{
+
+}
+
 Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspect, float nearZ, float farZ);
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);
 Matrix4x4 Inverse(const Matrix4x4& m);
@@ -77,7 +84,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		VectorScreenPrintf(0, 0, cross, "Cross");
 
 		Novice::DrawTriangle(int(screenVertices[0].x), int(screenVertices[0].y),
 			int(screenVertices[1].x), int(screenVertices[1].y),
