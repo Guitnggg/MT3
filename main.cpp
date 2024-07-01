@@ -8,9 +8,13 @@ const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 // クロス積
 Vector3 Cross(const Vector3& v1, const Vector3& v2)
 {
-
+	return 
+	{
+		v1.y * v2.z - v1.z * v2.y,
+		v1.z * v2.x - v1.x * v2.z,
+		v1.x * v2.y - v1.y * v2.x
+	};
 }
-
 
 //X軸回転行列作成
 Matrix4x4 MakeRotateXMatrix(float radian)
@@ -204,6 +208,7 @@ Matrix4x4 Inverse(const Matrix4x4& m) {
 
 
 Matrix4x4 MakeViewMatrix(float x, float y, float width, float height, float minZ, float maxZ);
+
 Vector3 Transform(const Vector3& v, const Matrix4x4& m);
 
 // Windowsアプリでのエントリーポイント(main関数)
