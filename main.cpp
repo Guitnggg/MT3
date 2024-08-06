@@ -27,7 +27,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float kWindowWidth = 1280.0f;
 	float kWindowHeight = 720.0f;
 
-	Vector3 cameraPosition = {};
+	Vector3 cameraPosition = { 0.0f,1.9f,-6.49f };
 
 	Vector3 kLocalVertices[3];
 
