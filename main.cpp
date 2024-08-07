@@ -1,7 +1,4 @@
 #include <Novice.h>
-#include <cstdint>
-#include <cassert>
-
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -12,6 +9,7 @@
 
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
+
 struct Vector3 {
 	float x;
 	float y;
@@ -21,6 +19,48 @@ struct Vector3 {
 struct Matrix4x4 {
 	float m[4][4];
 };
+
+
+struct Sphere {
+	Vector3 center;
+	float radius;
+};
+
+struct Line {
+	Vector3 origin;//始点
+	Vector3 diff;  //終点　差分ベクトル
+};
+
+struct Ray {
+	Vector3 origin;//始点
+	Vector3 diff;  //終点　差分ベクトル
+};
+
+struct Segment {
+	Vector3 origin;//始点
+	Vector3 diff;  //終点　差分ベクトル
+};
+
+struct Plane {
+	Vector3 normal;
+	float distance;
+};
+
+Vector3 Normalize(const Vector3& v) {
+	Vector3 result;
+	result.x = v.x / (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
+	result.y = v.y / (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
+	result.z = v.z / (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
+	return result;
+}
+
+Vector3 Add(Vector3& m1, Vector3& m2) {
+	Vector3 result;
+	result.x = m1.x + m2.x;
+	result.y = m1.y + m2.y;
+	result.z = m1.z + m2.z;
+	return result;
+}
 
 #pragma region 逆数
 Matrix4x4 Inverse(const Matrix4x4& m) {
@@ -337,7 +377,6 @@ Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, f
 }
 
 #pragma endregion
-
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result{};
 
@@ -352,11 +391,6 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 
 	return result;
 }
-
-struct Sphere {
-	Vector3 center;
-	float radius;
-};
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
 	const float kGridHandleWidth = 2.0f;
@@ -432,26 +466,61 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 	}
 }
 
-Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
+Vector3 MultiplyPlane(float m1, Vector3 m2) {
+	Vector3  result{};
+	result.x = m1 * m2.x;
+	result.y = m1 * m2.y;
+	result.z = m1 * m2.z;
+
+	return result;
+}
+
+Vector3 Perpendicular(const Vector3& vector) {
+	if (vector.x != 0.0f || vector.y != 0.0f) {
+		return { -vector.y,vector.x,0.0f };
+	}
+	return { 0.0f,-vector.z,vector.y };
+}
+
+Vector3 Cross(const Vector3& v1, const Vector3& v2) {
 	Vector3 result{};
-
-	result.x = v1.x - v2.x;
-	result.y = v1.y - v2.y;
-	result.z = v1.z - v2.z;
-
+	result.x = (v1.y * v2.z) - (v1.z * v2.y);
+	result.y = (v1.z * v2.x) - (v1.x * v2.z);
+	result.z = (v1.x * v2.y) - (v1.y * v2.x);
 	return result;
 }
 
-float Length(const Vector3& v) {
-	float result;
-	result = (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
-	return result;
+
+void DrawPlane(const Plane& plane, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
+	Vector3 center = MultiplyPlane(plane.distance, plane.normal);
+	Vector3 perpendiculars[4];
+	perpendiculars[0] = Normalize(Perpendicular(plane.normal));
+	perpendiculars[1] = { -perpendiculars[0].x,-perpendiculars[0].y,-perpendiculars[0].z };
+	perpendiculars[2] = Cross(plane.normal, perpendiculars[0]);
+	perpendiculars[3] = { -perpendiculars[2].x,-perpendiculars[2].y,-perpendiculars[2].z };
+
+	Vector3 points[4];
+	for (int32_t index = 0; index < 4; ++index) {
+		Vector3 extend = MultiplyPlane(2.0f, perpendiculars[index]);
+		Vector3 point = Add(center, extend);
+		points[index] = Transform(Transform(point, viewProjectionMatrix), viewportMatrix);
+	}
+
+	Novice::DrawLine((int)points[0].x, (int)points[0].y, (int)points[2].x, (int)points[2].y, WHITE);
+	Novice::DrawLine((int)points[0].x, (int)points[0].y, (int)points[3].x, (int)points[3].y, WHITE);
+	Novice::DrawLine((int)points[1].x, (int)points[1].y, (int)points[2].x, (int)points[2].y, WHITE);
+	Novice::DrawLine((int)points[1].x, (int)points[1].y, (int)points[3].x, (int)points[3].y, WHITE);
 }
 
-bool IsCollision(const Sphere& s1, const Sphere& s2) {
-	float distanceX = Length(Subtract(s1.center, s2.center));
 
-	if (distanceX <= s1.radius + s2.radius) {
+bool IsCollision(const Sphere& s1, const Plane& p2) {
+	float distanceX = (p2.normal.x + s1.center.x);
+	float distanceY = (p2.normal.y + s1.center.y);
+	float distanceZ = (p2.normal.z + s1.center.z);
+
+	float d = p2.distance * p2.normal.x + p2.distance * p2.normal.y + p2.distance * p2.normal.z;
+
+	if (distanceX + distanceY + distanceZ <= d) {
 		return true;
 	}
 	return false;
@@ -470,16 +539,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Vector3 cameraPosition = { 0.0f ,0.0f,-20.0f };
 	Vector3 cameraTranslate = { 0.0f,-1.0f,-6.49f };
-	Vector3 cameraRotate = { 0.26f,0.0f,0.0f };
+	Vector3 cameraRotate = { -0.26f,0.0f,0.0f };
 
 
-	Sphere sphere[2];
-
-	sphere[0] = { -0.5f,0.0f,0.0f,0.5f };
-
-	sphere[1] = { 1.0f,0.0f,-1.0f,0.5f };
+	Sphere sphere = { -0.5f,0.0f,0.5f,0.5f };
+	Plane plane = { -0.5f,0.0f,0.0f,0.5f };
 
 	uint32_t Color = WHITE;
+
+
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -493,7 +561,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓更新処理ここから
 		///
-
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0f,1.0f }, cameraRotate, cameraTranslate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, cameraPosition);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -505,7 +572,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DrawGrid(WorldViewProjectionMatrix, viewportMatrix);
 
 
-		bool distanceFlag = IsCollision(sphere[0], sphere[1]);
+		bool distanceFlag = IsCollision(sphere, plane);
 
 		if (distanceFlag == true) {
 			Color = RED;
@@ -514,9 +581,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Color = WHITE;
 		}
 
-		DrawSphere(sphere[0], WorldViewProjectionMatrix, viewportMatrix, Color);
-		DrawSphere(sphere[1], WorldViewProjectionMatrix, viewportMatrix, Color);
-
+		DrawSphere(sphere, WorldViewProjectionMatrix, viewportMatrix, Color);
+		DrawPlane(plane, WorldViewProjectionMatrix, viewportMatrix);
 
 
 
@@ -524,11 +590,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
 		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
 
-		ImGui::DragFloat3("shaderCenter[0]", &sphere[0].center.x, 0.01f);
-		ImGui::DragFloat("shaderRadius[0]", &sphere[0].radius, 0.01f);
+		ImGui::DragFloat3("shaderCenter[0]", &sphere.center.x, 0.01f);
+		ImGui::DragFloat("shaderRadius[0]", &sphere.radius, 0.01f);
 
-		ImGui::DragFloat3("shaderCenter[1]", &sphere[1].center.x, 0.01f);
-		ImGui::DragFloat("shaderRadius[1]", &sphere[1].radius, 0.01f);
+		ImGui::DragFloat3("Plane.Normal", &plane.normal.x, 0.01f);
+		plane.normal = Normalize(plane.normal);
+		ImGui::DragFloat("Plane.Normal", &plane.distance, 0.01f);
+
 
 		ImGui::End();
 
