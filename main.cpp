@@ -1,130 +1,204 @@
 #include <Novice.h>
-#include <Vector3.h>
-#include <Matrix4x4.h>
-#include <cmath>
+#include<cmath>
 
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
-// Vector3の定義
-struct Vector3 {
-    float x, y, z;
+struct Matrix4x4 {
+	float m[4][4];
 };
 
-// 3次元アフィン変換行列
-Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
-    // スケーリング行列
-    Matrix4x4 scaleMatrix = {
-        scale.x, 0, 0, 0,
-        0, scale.y, 0, 0,
-        0, 0, scale.z, 0,
-        0, 0, 0, 1
-    };
+struct Vector3 {
+	float x;
+	float y;
+	float z;
+};
+Matrix4x4 MakeRotateXMatrix(float radian) {
+	Matrix4x4 result{};
 
-    // 回転行列（X軸）
-    float cosX = cosf(rotate.x);
-    float sinX = sinf(rotate.x);
-    Matrix4x4 rotateXMatrix = {
-        1, 0, 0, 0,
-        0, cosX, -sinX, 0,
-        0, sinX, cosX, 0,
-        0, 0, 0, 1
-    };
+	result.m[0][0] = 1.0f;
+	result.m[0][1] = 0.0f;
+	result.m[0][2] = 0.0f;
+	result.m[0][3] = 0.0f;
+	result.m[1][0] = 0.0f;
+	result.m[1][1] = std::cos(radian);
+	result.m[1][2] = std::sin(radian);
+	result.m[1][3] = 0.0f;
+	result.m[2][0] = 0.0f;
+	result.m[2][1] = -(std::sin(radian));
+	result.m[2][2] = std::cos(radian);
+	result.m[2][3] = 0.0f;
+	result.m[3][0] = 0.0f;
+	result.m[3][1] = 0.0f;
+	result.m[3][2] = 0.0f;
+	result.m[3][3] = 1.0f;
 
-    // 回転行列（Y軸）
-    float cosY = cosf(rotate.y);
-    float sinY = sinf(rotate.y);
-    Matrix4x4 rotateYMatrix = {
-        cosY, 0, sinY, 0,
-        0, 1, 0, 0,
-        -sinY, 0, cosY, 0,
-        0, 0, 0, 1
-    };
-
-    // 回転行列（Z軸）
-    float cosZ = cosf(rotate.z);
-    float sinZ = sinf(rotate.z);
-    Matrix4x4 rotateZMatrix = {
-        cosZ, -sinZ, 0, 0,
-        sinZ, cosZ, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    };
-
-    // 平行移動行列
-    Matrix4x4 translateMatrix = {
-        1, 0, 0, translate.x,
-        0, 1, 0, translate.y,
-        0, 0, 1, translate.z,
-        0, 0, 0, 1
-    };
-
-    // 全ての行列を掛け合わせる（S * Rz * Ry * Rx * T の順番）
-    Matrix4x4 worldMatrix = scaleMatrix * rotateZMatrix * rotateYMatrix * rotateXMatrix * translateMatrix;
-    return worldMatrix;
+	return result;
 }
+
+Matrix4x4 MakeRotateYMatrix(float radian) {
+	Matrix4x4 result{};
+
+	result.m[0][0] = std::cos(radian);
+	result.m[0][1] = 0.0f;
+	result.m[0][2] = -(std::sin(radian));
+	result.m[0][3] = 0.0f;
+	result.m[1][0] = 0.0f;
+	result.m[1][1] = 1.0f;
+	result.m[1][2] = 0.0f;
+	result.m[1][3] = 0.0f;
+	result.m[2][0] = std::sin(radian);
+	result.m[2][1] = 0.0f;
+	result.m[2][2] = std::cos(radian);
+	result.m[2][3] = 0.0f;
+	result.m[3][0] = 0.0f;
+	result.m[3][1] = 0.0f;
+	result.m[3][2] = 0.0f;
+	result.m[3][3] = 1.0f;
+
+	return result;
+}
+
+Matrix4x4 MakeRotateZMatrix(float radian) {
+	Matrix4x4 result{};
+
+	result.m[0][0] = std::cos(radian);
+	result.m[0][1] = std::sin(radian);
+	result.m[0][2] = 0.0f;
+	result.m[0][3] = 0.0f;
+	result.m[1][0] = -(std::sin(radian));
+	result.m[1][1] = std::cos(radian);
+	result.m[1][2] = 0.0f;
+	result.m[1][3] = 0.0f;
+	result.m[2][0] = 0.0f;
+	result.m[2][1] = 0.0f;
+	result.m[2][2] = 1.0f;
+	result.m[2][3] = 0.0f;
+	result.m[3][0] = 0.0f;
+	result.m[3][1] = 0.0f;
+	result.m[3][2] = 0.0f;
+	result.m[3][3] = 1.0f;
+
+	return result;
+
+}
+
+Matrix4x4 Multiply(Matrix4x4 m1, Matrix4x4 m2) {
+	Matrix4x4 result{};
+	result.m[0][0] = m1.m[0][0] * m2.m[0][0] + m1.m[0][1] * m2.m[1][0] + m1.m[0][2] * m2.m[2][0] + m1.m[0][3] * m2.m[3][0];
+	result.m[0][1] = m1.m[0][0] * m2.m[0][1] + m1.m[0][1] * m2.m[1][1] + m1.m[0][2] * m2.m[2][1] + m1.m[0][3] * m2.m[3][1];
+	result.m[0][2] = m1.m[0][0] * m2.m[0][2] + m1.m[0][1] * m2.m[1][2] + m1.m[0][2] * m2.m[2][2] + m1.m[0][3] * m2.m[3][2];
+	result.m[0][3] = m1.m[0][0] * m2.m[0][3] + m1.m[0][1] * m2.m[1][3] + m1.m[0][2] * m2.m[2][3] + m1.m[0][3] * m2.m[3][3];
+
+	result.m[1][0] = m1.m[1][0] * m2.m[0][0] + m1.m[1][1] * m2.m[1][0] + m1.m[1][2] * m2.m[2][0] + m1.m[1][3] * m2.m[3][0];
+	result.m[1][1] = m1.m[1][0] * m2.m[0][1] + m1.m[1][1] * m2.m[1][1] + m1.m[1][2] * m2.m[2][1] + m1.m[1][3] * m2.m[3][1];
+	result.m[1][2] = m1.m[1][0] * m2.m[0][2] + m1.m[1][1] * m2.m[1][2] + m1.m[1][2] * m2.m[2][2] + m1.m[1][3] * m2.m[3][2];
+	result.m[1][3] = m1.m[1][0] * m2.m[0][3] + m1.m[1][1] * m2.m[1][3] + m1.m[1][2] * m2.m[2][3] + m1.m[1][3] * m2.m[3][3];
+
+	result.m[2][0] = m1.m[2][0] * m2.m[0][0] + m1.m[2][1] * m2.m[1][0] + m1.m[2][2] * m2.m[2][0] + m1.m[2][3] * m2.m[3][0];
+	result.m[2][1] = m1.m[2][0] * m2.m[0][1] + m1.m[2][1] * m2.m[1][1] + m1.m[2][2] * m2.m[2][1] + m1.m[2][3] * m2.m[3][1];
+	result.m[2][2] = m1.m[2][0] * m2.m[0][2] + m1.m[2][1] * m2.m[1][2] + m1.m[2][2] * m2.m[2][2] + m1.m[2][3] * m2.m[3][2];
+	result.m[2][3] = m1.m[2][0] * m2.m[0][3] + m1.m[2][1] * m2.m[1][3] + m1.m[2][2] * m2.m[2][3] + m1.m[2][3] * m2.m[3][3];
+
+	result.m[3][0] = m1.m[3][0] * m2.m[0][0] + m1.m[3][1] * m2.m[1][0] + m1.m[3][2] * m2.m[2][0] + m1.m[3][3] * m2.m[3][0];
+	result.m[3][1] = m1.m[3][0] * m2.m[0][1] + m1.m[3][1] * m2.m[1][1] + m1.m[3][2] * m2.m[2][1] + m1.m[3][3] * m2.m[3][1];
+	result.m[3][2] = m1.m[3][0] * m2.m[0][2] + m1.m[3][1] * m2.m[1][2] + m1.m[3][2] * m2.m[2][2] + m1.m[3][3] * m2.m[3][2];
+	result.m[3][3] = m1.m[3][0] * m2.m[0][3] + m1.m[3][1] * m2.m[1][3] + m1.m[3][2] * m2.m[2][3] + m1.m[3][3] * m2.m[3][3];
+	return result;
+}
+
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Matrix4x4& rotate, const Vector3& translate) {
+
+	Matrix4x4 result{};
+	result.m[0][0] = scale.x * rotate.m[0][0];
+	result.m[0][1] = scale.x * rotate.m[0][1];
+	result.m[0][2] = scale.x * rotate.m[0][2];
+	result.m[0][3] = 0.0f;
+	result.m[1][0] = scale.y * rotate.m[1][0];
+	result.m[1][1] = scale.y * rotate.m[1][1];
+	result.m[1][2] = scale.y * rotate.m[1][2];
+	result.m[1][3] = 0.0f;
+	result.m[2][0] = scale.z * rotate.m[2][0];
+	result.m[2][1] = scale.z * rotate.m[2][1];
+	result.m[2][2] = scale.z * rotate.m[2][2];
+	result.m[2][3] = 0.0f;
+	result.m[3][0] = translate.x;
+	result.m[3][1] = translate.y;
+	result.m[3][2] = translate.z;
+	result.m[3][3] = 1.0f;
+	return result;
+}
+
 
 static const int kRowHeight = 20;
-static const int kColumnWidth = 60;
+static const int kColumnWidth = 70;
 
-void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix, const char* label) {
-    Novice::ScreenPrintf(x, y, "%s", label);
-    for (int row = 0; row < 4; row++) {
-        for (int column = 0; column < 4; column++) {
-            Novice::ScreenPrintf(x + column * kColumnWidth, y + (row + 1) * kRowHeight, "%6.02f", matrix.m[row][column]);
-        }
-    }
+void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix, const char* name) {
+	Novice::ScreenPrintf(x, y, "%s", name);
+	for (int row = 0; row < 4; ++row) {
+		for (int column = 0; column < 4; ++column) {
+			Novice::ScreenPrintf(x + column * kColumnWidth, y + 20 + row * kRowHeight, "%.02f", matrix.m[row][column]);
+		}
+	}
 }
-
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    // ライブラリの初期化
-    Novice::Initialize(kWindowTitle, 1280, 720);
 
-    Vector3 scale{ 1.2f, 0.79f, -2.1f };
-    Vector3 rotate{ 0.4f, 1.43f, -0.8f };
-    Vector3 translate{ 2.7f, -4.15f, 1.57f };
-    Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotate, translate);
+	// ライブラリの初期化
+	Novice::Initialize(kWindowTitle, 1280, 720);
 
-    // キー入力結果を受け取る箱
-    char keys[256] = { 0 };
-    char preKeys[256] = { 0 };
+	// キー入力結果を受け取る箱
+	char keys[256] = { 0 };
+	char preKeys[256] = { 0 };
 
-    // ウィンドウの×ボタンが押されるまでループ
-    while (Novice::ProcessMessage() == 0) {
-        // フレームの開始
-        Novice::BeginFrame();
+	Vector3 scale = { 1.2f,0.79f,-2.1f };
+	Vector3 rotate = { 0.4f,1.43f,-0.8f };
+	Vector3 translate = { 2.7f,-4.15f,1.57f };
 
-        // キー入力を受け取る
-        memcpy(preKeys, keys, 256);
-        Novice::GetHitKeyStateAll(keys);
+	Matrix4x4 rotateXMatrix = MakeRotateXMatrix(rotate.x);
+	Matrix4x4 rotateYMatrix = MakeRotateYMatrix(rotate.y);
+	Matrix4x4 rotateZMatrix = MakeRotateZMatrix(rotate.z);
+	Matrix4x4 rotateXYZMatrix = Multiply(rotateXMatrix, Multiply(rotateYMatrix, rotateZMatrix));
 
-        ///
-        /// ↓更新処理ここから
-        ///
 
-        ///
-        /// ↑更新処理ここまで
-        ///
+	Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotateXYZMatrix, translate);
 
-        ///
-        /// ↓描画処理ここから
-        ///
-        MatrixScreenPrintf(0, 0, worldMatrix, "worldMatrix");
-        ///
-        /// ↑描画処理ここまで
-        ///
 
-        // フレームの終了
-        Novice::EndFrame();
+	// ウィンドウの×ボタンが押されるまでループ
+	while (Novice::ProcessMessage() == 0) {
+		// フレームの開始
+		Novice::BeginFrame();
 
-        // ESCキーが押されたらループを抜ける
-        if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE] != 0) {
-            break;
-        }
-    }
+		// キー入力を受け取る
+		memcpy(preKeys, keys, 256);
+		Novice::GetHitKeyStateAll(keys);
 
-    // ライブラリの終了
-    Novice::Finalize();
-    return 0;
+		///
+		/// ↓更新処理ここから
+		///
+
+		///
+		/// ↑更新処理ここまで
+		///
+
+		///
+		/// ↓描画処理ここから
+		///
+		MatrixScreenPrintf(0, 0, worldMatrix, "WorldMatrix");
+		///
+		/// ↑描画処理ここまで
+		///
+
+		// フレームの終了
+		Novice::EndFrame();
+
+		// ESCキーが押されたらループを抜ける
+		if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE] != 0) {
+			break;
+		}
+	}
+
+	// ライブラリの終了
+	Novice::Finalize();
+	return 0;
 }
