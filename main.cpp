@@ -1,4 +1,7 @@
 #include <Novice.h>
+#include <cstdint>
+#include <cassert>
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -17,27 +20,6 @@ struct Vector3 {
 
 struct Matrix4x4 {
 	float m[4][4];
-};
-
-
-struct Sphere {
-	Vector3 center;
-	float radius;
-};
-
-struct Line {
-	Vector3 origin;//始点
-	Vector3 diff;  //終点　差分ベクトル
-};
-
-struct Ray {
-	Vector3 origin;//始点
-	Vector3 diff;  //終点　差分ベクトル
-};
-
-struct Segment {
-	Vector3 origin;//始点
-	Vector3 diff;  //終点　差分ベクトル
 };
 
 #pragma region 逆数
@@ -355,6 +337,7 @@ Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, f
 }
 
 #pragma endregion
+
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result{};
 
@@ -369,6 +352,11 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 
 	return result;
 }
+
+struct Sphere {
+	Vector3 center;
+	float radius;
+};
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
 	const float kGridHandleWidth = 2.0f;
@@ -407,12 +395,14 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 }
 
 void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
-	const uint32_t kSubdivision = 10;
-	const float kLonEvery = float(M_PI) / 4.0f;
-	const float kLatEvery = float(M_PI) / 4.0f;
+	const uint32_t kSubdivision = 30;
+	const float kLonEvery = float(M_PI) / 8.0f;
+	const float kLatEvery = float(M_PI) / 8.0f;
 
 	float pi = float(M_PI);
 
+	Vector3 pointAB[kSubdivision] = {};
+	Vector3 pointAC[kSubdivision] = {};
 
 	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
 		float lat = -pi / 2.0f + kLatEvery * latIndex;//緯度 シ－タ
@@ -431,57 +421,41 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 			Vector3 cScreen = Transform(Transform(c, viewProjectionMatrix), viewportMatrix);
 
 
-			Novice::DrawLine((int)aScreen.x, (int)aScreen.y, (int)bScreen.x, (int)bScreen.y, color);
-			Novice::DrawLine((int)bScreen.x, (int)bScreen.y, (int)cScreen.x, (int)cScreen.y, color);
+			if (pointAB[latIndex].x != 0 && pointAB[lonIndex].x != 0) {
+				Novice::DrawLine((int)aScreen.x, (int)aScreen.y, (int)pointAB[latIndex].x, (int)pointAB[latIndex].y, color);
+				Novice::DrawLine((int)aScreen.x, (int)aScreen.y, (int)pointAC[lonIndex].x, (int)pointAC[lonIndex].y, color);
+			}
+
+			pointAB[latIndex] = aScreen;
+			pointAC[lonIndex] = aScreen;
 		}
 	}
 }
 
-Vector3 Add(const Vector3& v1, const Vector3& v2) {
-	Vector3 result;
-	result.x = v1.x + v2.x;
-	result.y = v1.y + v2.y;
-	result.z = v1.z + v2.z;
-	return result;
-}
-
 Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
-	Vector3 result;
+	Vector3 result{};
+
 	result.x = v1.x - v2.x;
 	result.y = v1.y - v2.y;
 	result.z = v1.z - v2.z;
-	return result;
-}
-
-Vector3 Project(const Vector3& v1, const Vector3& v2) {
-	// x0.5,y1.6,z0.6
-	float t = ((v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z)) / ((v2.x * v2.x) + (v2.y * v2.y) + (v2.z * v2.z));
-
-	Vector3 result{};
-	result.x = t * v2.x;
-	result.y = t * v2.y;
-	result.z = t * v2.z;
-	return result;
-}
-
-Vector3 ClosestPoint(const Vector3& point, const Segment& v2) {
-
-	Vector3 a = { point.x - v2.origin.x,point.y - v2.origin.y,point.z - v2.origin.z };
-
-	float t = ((a.x * v2.diff.x) + (a.y * v2.diff.y) + (a.z * v2.diff.z)) / ((v2.diff.x * v2.diff.x) + (v2.diff.y * v2.diff.y) + (v2.diff.z * v2.diff.z));
-
-
-	Vector3 result{};
-
-
-	result.x = v2.origin.x + (t * v2.diff.x);
-	result.y = v2.origin.y + (t * v2.diff.y);
-	result.z = v2.origin.z + (t * v2.diff.z);
 
 	return result;
 }
 
+float Length(const Vector3& v) {
+	float result;
+	result = (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
+	return result;
+}
 
+bool IsCollision(const Sphere& s1, const Sphere& s2) {
+	float distanceX = Length(Subtract(s1.center, s2.center));
+
+	if (distanceX <= s1.radius + s2.radius) {
+		return true;
+	}
+	return false;
+}
 
 
 // Windowsアプリでのエントリーポイント(main関数)
@@ -494,23 +468,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Segment segment{ {-2.0f,-1.0f,0.0f} ,{3.0f,2.0f,2.0f} };
-	Vector3 point{ -1.5f,0.6f,0.6f };
-
-
-	Vector3 project = Project(Subtract(point, segment.origin), segment.diff);
-	Vector3 closestPoint = ClosestPoint(point, segment);
-
-	Sphere pointSphere{ point,0.01f };
-	Sphere closestPointSphere{ closestPoint,0.01f };
-
-
 	Vector3 cameraPosition = { 0.0f ,0.0f,-20.0f };
-	Vector3 cameraTranslate = { 0.0f,-0.5f,-12.0f };
-	Vector3 cameraRotate = { -0.16f,0.0f,0.0f };
+	Vector3 cameraTranslate = { 0.0f,-1.0f,-6.49f };
+	Vector3 cameraRotate = { 0.26f,0.0f,0.0f };
 
 
+	Sphere sphere[2];
 
+	sphere[0] = { -0.5f,0.0f,0.0f,0.5f };
+
+	sphere[1] = { 1.0f,0.0f,-1.0f,0.5f };
+
+	uint32_t Color = WHITE;
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -536,14 +505,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DrawGrid(WorldViewProjectionMatrix, viewportMatrix);
 
 
-		Vector3 start = Transform(Transform(segment.origin, WorldViewProjectionMatrix), viewportMatrix);
-		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), WorldViewProjectionMatrix), viewportMatrix);
+		bool distanceFlag = IsCollision(sphere[0], sphere[1]);
 
+		if (distanceFlag == true) {
+			Color = RED;
+		}
+		else {
+			Color = WHITE;
+		}
 
-		Novice::DrawLine((int)start.x, (int)start.y, (int)end.x, (int)end.y, WHITE);
+		DrawSphere(sphere[0], WorldViewProjectionMatrix, viewportMatrix, Color);
+		DrawSphere(sphere[1], WorldViewProjectionMatrix, viewportMatrix, Color);
 
-		DrawSphere(pointSphere, WorldViewProjectionMatrix, viewportMatrix, RED);
-		DrawSphere(closestPointSphere, WorldViewProjectionMatrix, viewportMatrix, BLACK);
 
 
 
@@ -551,11 +524,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
 		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
 
-		ImGui::InputFloat3("point", &point.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
-		ImGui::InputFloat3("origin", &segment.origin.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
-		ImGui::InputFloat3("diff", &segment.diff.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
-		ImGui::InputFloat3("project", &project.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
+		ImGui::DragFloat3("shaderCenter[0]", &sphere[0].center.x, 0.01f);
+		ImGui::DragFloat("shaderRadius[0]", &sphere[0].radius, 0.01f);
 
+		ImGui::DragFloat3("shaderCenter[1]", &sphere[1].center.x, 0.01f);
+		ImGui::DragFloat("shaderRadius[1]", &sphere[1].radius, 0.01f);
 
 		ImGui::End();
 
