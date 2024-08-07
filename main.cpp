@@ -1,16 +1,10 @@
 #include <Novice.h>
-#include <Novice.h>
+#include "MyMath.h"
 #include <cstdint>
 #include <cassert>
-#define _USE_MATH_DEFINES
-#include <math.h>
-#include "MyMath.h"
-
-
 #include<imgui.h>
-#include <algorithm>
-const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
+const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
 
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
@@ -28,38 +22,21 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	return result;
 }
 
-Vector3 Add(const Vector3& v1, const Vector3& v2) {
-	Vector3 result;
-	result.x = v1.x + v2.x;
-	result.y = v1.y + v2.y;
-	result.z = v1.z + v2.z;
-	return result;
+Vector3 Bezier(const Vector3& p0, const Vector3& p1, float t) {
+
+	Vector3 a = { t * p0.x ,t * p0.y ,t * p0.z };
+	Vector3 b = { (1.0f - t) * p1.x,(1.0f - t) * p1.y,(1.0f - t) * p1.z };
+	Vector3	c = { a.x + b.x,a.y + b.y,a.z + b.z };
+
+	return c;
 }
 
-Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
-	Vector3 result{};
-	result.x = v1.x - v2.x;
-	result.y = v1.y - v2.y;
-	result.z = v1.z - v2.z;
-	return result;
-}
-
-float Length(const Vector3& v) {
-	float result;
-	result = (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
-	return result;
-}
-
-
-struct AABB {
-	Vector3 min;
-	Vector3 max;
-};
-
-struct Segment {
-	Vector3 origin;//始点
-	Vector3 diff;  //終点　差分ベクトル
-};
+//Vector3 World(Vector3 a)
+//{
+//	a.y += -500;
+//	a.y *= -1;
+//	return a;
+//}
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
 	const float kGridHandleWidth = 2.0f;
@@ -98,88 +75,40 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 }
 
 
+void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2,
+	const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+
+	uint32_t link = 32;
+	uint32_t index = 0;
+
+	Vector3 p0Screen = Transform(Transform(controlPoint0, viewProjectionMatrix), viewportMatrix);
+	Vector3 p1Screen = Transform(Transform(controlPoint1, viewProjectionMatrix), viewportMatrix);
+	Vector3 p2Screen = Transform(Transform(controlPoint2, viewProjectionMatrix), viewportMatrix);
+
+	Vector3 a = Transform(Transform(controlPoint0, viewProjectionMatrix), viewportMatrix);
+
+	Novice::DrawEllipse((int)a.x, (int)a.y, 5, 5, 0.0f, BLACK, kFillModeSolid);
+	Novice::DrawEllipse((int)p1Screen.x, (int)p1Screen.y, 5, 5, 0.0f, BLACK, kFillModeSolid);
+	Novice::DrawEllipse((int)p2Screen.x, (int)p2Screen.y, 5, 5, 0.0f, BLACK, kFillModeSolid);
 
 
-void DrawaAABB(const AABB& aabb, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	for (index = 0; index < link; index++) {
+		float t0 = index / float(link);
+		float t1 = index / float(link);
 
-	Vector3 Bottom[4] = {
-		{ aabb.min.x,aabb.min.y,aabb.min.z },
-		{ aabb.max.x,aabb.min.y,aabb.min.z },
-		{ aabb.min.x,aabb.min.y,aabb.max.z },
-		{ aabb.max.x,aabb.min.y,aabb.max.z }
-	};
+		Vector3 bezier0 = Bezier(p0Screen, p1Screen, t0);
+		Vector3 bezier1 = Bezier(p1Screen, p2Screen, t1);
+		Vector3 p = Bezier(bezier0, bezier1, t0);
 
-	Vector3 Top[4] = {
-		{ aabb.min.x,aabb.max.y,aabb.min.z },
-		{ aabb.max.x,aabb.max.y,aabb.min.z },
-		{ aabb.min.x,aabb.max.y,aabb.max.z },
-		{ aabb.max.x,aabb.max.y,aabb.max.z }
-	};
-
-	Vector3 BottomScreen[4] = {};
-	Vector3 TopScreen[4] = {};
-
-
-	for (uint32_t i = 0; i < 4; i++) {
-		BottomScreen[i] = Transform(Transform(Bottom[i], viewProjectionMatrix), viewportMatrix);
-		TopScreen[i] = Transform(Transform(Top[i], viewProjectionMatrix), viewportMatrix);
+		if (index == 0) {
+			Novice::DrawLine((int)p0Screen.x, (int)p0Screen.y, (int)a.x, (int)a.y, RED);
+		}
+		else {
+			Novice::DrawLine((int)a.x, (int)a.y, (int)p.x, (int)p.y, color);
+		}
+		a.x = p.x;
+		a.y = p.y;
 	}
-
-
-	Novice::DrawLine((int)BottomScreen[0].x, (int)BottomScreen[0].y, (int)BottomScreen[1].x, (int)BottomScreen[1].y, color);
-	Novice::DrawLine((int)BottomScreen[0].x, (int)BottomScreen[0].y, (int)BottomScreen[2].x, (int)BottomScreen[2].y, color);
-	Novice::DrawLine((int)BottomScreen[1].x, (int)BottomScreen[1].y, (int)BottomScreen[3].x, (int)BottomScreen[3].y, color);
-	Novice::DrawLine((int)BottomScreen[2].x, (int)BottomScreen[2].y, (int)BottomScreen[3].x, (int)BottomScreen[3].y, color);
-
-	Novice::DrawLine((int)TopScreen[0].x, (int)TopScreen[0].y, (int)TopScreen[1].x, (int)TopScreen[1].y, color);
-	Novice::DrawLine((int)TopScreen[0].x, (int)TopScreen[0].y, (int)TopScreen[2].x, (int)TopScreen[2].y, color);
-	Novice::DrawLine((int)TopScreen[1].x, (int)TopScreen[1].y, (int)TopScreen[3].x, (int)TopScreen[3].y, color);
-	Novice::DrawLine((int)TopScreen[2].x, (int)TopScreen[2].y, (int)TopScreen[3].x, (int)TopScreen[3].y, color);
-
-	Novice::DrawLine((int)TopScreen[0].x, (int)TopScreen[0].y, (int)BottomScreen[0].x, (int)BottomScreen[0].y, color);
-	Novice::DrawLine((int)TopScreen[1].x, (int)TopScreen[1].y, (int)BottomScreen[1].x, (int)BottomScreen[1].y, color);
-	Novice::DrawLine((int)TopScreen[2].x, (int)TopScreen[2].y, (int)BottomScreen[2].x, (int)BottomScreen[2].y, color);
-	Novice::DrawLine((int)TopScreen[3].x, (int)TopScreen[3].y, (int)BottomScreen[3].x, (int)BottomScreen[3].y, color);
-}
-
-
-
-
-
-bool IsCollision(const AABB& aabb, const Segment segment) {
-
-	Vector3 t1 = {
-		(aabb.min.x - segment.origin.x) / segment.diff.x,
-		(aabb.min.y - segment.origin.y) / segment.diff.y,
-		(aabb.min.z - segment.origin.z) / segment.diff.z
-	};
-
-	Vector3 t2 = {
-		(aabb.max.x - segment.origin.x) / segment.diff.x,
-		(aabb.max.y - segment.origin.y) / segment.diff.y,
-		(aabb.max.z - segment.origin.z) / segment.diff.z
-	};
-
-	Vector3 tNear = {
-		min(t1.x, t2.x),
-		min(t1.y, t2.y),
-		min(t1.z, t2.z)
-	};
-
-	Vector3 tFar = {
-		max(t1.x, t2.x),
-		max(t1.y, t2.y),
-		max(t1.z, t2.z)
-	};
-
-
-	float tmin = max(max(tNear.x, tNear.y), tNear.z);
-	float tmax = min(min(tFar.x, tFar.y), tFar.z);
-
-	if (tmin <= tmax) {
-		return true;
-	}
-	return false;
 }
 
 
@@ -193,24 +122,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	AABB aabb{
-		.min{ -0.5f,-0.5f,-0.5f },
-		.max{ 0.5f,0.5f,0.5f }
+	Vector3 controlPoint[3] = {
+		{-0.8f,0.58f,1.0f},
+		{1.76f,1.0f,-0.3f},
+		{0.94f,-0.7f,2.3f}
 	};
-
-	Segment segment{
-		.origin{-0.7f,0.3f,0.0f},
-		.diff{2.0f,-0.5f,0.0f}
-	};
-
-	MyMath* myMath_ = new MyMath();
 
 	Vector3 cameraPosition = { 0.0f ,0.0f,-20.0f };
 	Vector3 cameraTranslate = { 0.0f,-1.0f,-6.49f };
-	Vector3 cameraRotate = { -0.26f,0.0f,0.0f };
+	Vector3 cameraRotate = { -0.26f,0.26f,0.0f };
 
-	uint32_t color1 = WHITE;
-	uint32_t color2 = WHITE;
+	MyMath* myMath_ = new MyMath();
+
+
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -225,7 +149,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-
 		Matrix4x4 worldMatrix = myMath_->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, cameraRotate, cameraTranslate);
 		Matrix4x4 cameraMatrix = myMath_->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, cameraPosition);
 		Matrix4x4 viewMatrix = myMath_->Inverse(cameraMatrix);
@@ -233,10 +156,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 WorldViewProjectionMatrix = myMath_->Multiply(worldMatrix, myMath_->Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = myMath_->MakeViewportMatrix(0, 0, float(1280.0f), float(720.0f), 0.0f, 1.0f);
 
-		Vector3 start = Transform(Transform(segment.origin, WorldViewProjectionMatrix), viewportMatrix);
-		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), WorldViewProjectionMatrix), viewportMatrix);
 
+		DrawBezier(controlPoint[0], controlPoint[1], controlPoint[2], WorldViewProjectionMatrix, viewportMatrix, BLUE);
 
+		DrawGrid(WorldViewProjectionMatrix, viewportMatrix);
+
+		ImGui::Begin("window");
+		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
+		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
+
+		ImGui::DragFloat3("p0", &controlPoint[0].x, 0.1f);
+		ImGui::DragFloat3("p1", &controlPoint[1].x, 0.1f);
+		ImGui::DragFloat3("p2", &controlPoint[2].x, 0.1f);
+
+		ImGui::End();
 
 
 
@@ -247,33 +180,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓描画処理ここから
 		///
-
-		DrawGrid(WorldViewProjectionMatrix, viewportMatrix);
-
-		DrawaAABB(aabb, WorldViewProjectionMatrix, viewportMatrix, color1);
-
-		Novice::DrawLine((int)start.x, (int)start.y, (int)end.x, (int)end.y, color2);
-
-		if (IsCollision(aabb, segment)) {
-			color1 = RED;
-		}
-		else {
-			color1 = WHITE;
-		}
-
-
-
-		ImGui::Begin("window");
-		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
-		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
-
-		ImGui::DragFloat3("box min", &aabb.min.x, 0.01f);
-		ImGui::DragFloat3("box max", &aabb.max.x, 0.01f);
-
-		ImGui::DragFloat3("sen start", &segment.origin.x, 0.01f);
-		ImGui::DragFloat3("sen end", &segment.diff.x, 0.01f);
-
-		ImGui::End();
 
 		///
 		/// ↑描画処理ここまで
