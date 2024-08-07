@@ -2,7 +2,7 @@
 #include<cmath>
 #include<assert.h>
 
-const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ";
+const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
 struct Vector3 {
 	float x;
