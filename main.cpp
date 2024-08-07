@@ -31,12 +31,6 @@ Vector3 Bezier(const Vector3& p0, const Vector3& p1, float t) {
 	return c;
 }
 
-//Vector3 World(Vector3 a)
-//{
-//	a.y += -500;
-//	a.y *= -1;
-//	return a;
-//}
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
 	const float kGridHandleWidth = 2.0f;
