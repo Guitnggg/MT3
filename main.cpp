@@ -1,14 +1,15 @@
 #include <Novice.h>
-#include "MyMath.h"
-
+#include <cstdint>
+#include <cassert>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include "MyMath.h"
+
 
 #include<imgui.h>
-
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
-MyMath* myMath = new MyMath();
+
 
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result{};
@@ -23,6 +24,20 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	result.z /= w;
 
 	return result;
+}
+
+struct AABB {
+	Vector3 min;
+	Vector3 max;
+};
+
+bool IsCollision(const AABB& aabb1, const AABB& aabb2) {
+	if ((aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) &&
+		(aabb1.min.y <= aabb2.max.y && aabb1.max.y >= aabb2.min.y) &&
+		(aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z)) {
+		return true;
+	}
+	return false;
 }
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
@@ -61,158 +76,46 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 	}
 }
 
+void DrawaAABB(const AABB& aabb, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
 
-Vector3 MultiplyPlane(float m1, Vector3 m2) {
-	Vector3  result{};
-	result.x = m1 * m2.x;
-	result.y = m1 * m2.y;
-	result.z = m1 * m2.z;
+	Vector3 Bottom[4] = {
+		{ aabb.min.x,aabb.min.y,aabb.min.z },
+		{ aabb.max.x,aabb.min.y,aabb.min.z },
+		{ aabb.min.x,aabb.min.y,aabb.max.z },
+		{ aabb.max.x,aabb.min.y,aabb.max.z }
+	};
 
-	return result;
-}
+	Vector3 Top[4] = {
+		{ aabb.min.x,aabb.max.y,aabb.min.z },
+		{ aabb.max.x,aabb.max.y,aabb.min.z },
+		{ aabb.min.x,aabb.max.y,aabb.max.z },
+		{ aabb.max.x,aabb.max.y,aabb.max.z }
+	};
 
-
-struct Segment {
-	Vector3 origin;//始点
-	Vector3 diff;  //終点　差分ベクトル
-};
-
-
-//三角
-struct Triangle {
-	Vector3 vertices[3];
-};
-
-Vector3 Normalize(const Vector3& v) {
-	Vector3 result;
-	result.x = v.x / (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
-	result.y = v.y / (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
-	result.z = v.z / (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
-	return result;
-}
-
-Vector3 Add(Vector3& m1, Vector3& m2) {
-	Vector3 result;
-	result.x = m1.x + m2.x;
-	result.y = m1.y + m2.y;
-	result.z = m1.z + m2.z;
-	return result;
-}
-
-Vector3 Perpendicular(const Vector3& vector) {
-	if (vector.x != 0.0f || vector.y != 0.0f) {
-		return { -vector.y,vector.x,0.0f };
-	}
-	return { 0.0f,-vector.z,vector.y };
-}
-
-Vector3 Cross(const Vector3& v1, const Vector3& v2) {
-	Vector3 result{};
-	result.x = (v1.y * v2.z) - (v1.z * v2.y);
-	result.y = (v1.z * v2.x) - (v1.x * v2.z);
-	result.z = (v1.x * v2.y) - (v1.y * v2.x);
-	return result;
-}
+	Vector3 BottomScreen[4] = {};
+	Vector3 TopScreen[4] = {};
 
 
-void DrawTriangle(const Triangle& triangle, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
-
-	Vector3 T0 = Transform(Transform(triangle.vertices[0], viewProjectionMatrix), viewportMatrix);
-	Vector3 T1 = Transform(Transform(triangle.vertices[1], viewProjectionMatrix), viewportMatrix);
-	Vector3 T2 = Transform(Transform(triangle.vertices[2], viewProjectionMatrix), viewportMatrix);
-
-	Novice::DrawTriangle((int)T0.x, (int)T0.y, (int)T1.x, (int)T1.y, (int)T2.x, (int)T2.y, WHITE, kFillModeWireFrame);
-}
-
-
-float Dot(const Vector3& v1, const Vector3& v2) {
-	float result;
-	result = (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
-	return result;
-}
-
-struct Plane {
-	Vector3 normal;
-	float distance;
-};
-
-void DrawPlane(const Plane& plane, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
-	Vector3 center = MultiplyPlane(plane.distance, plane.normal);
-	Vector3 perpendiculars[4];
-	perpendiculars[0] = Normalize(Perpendicular(plane.normal));
-	perpendiculars[1] = { -perpendiculars[0].x,-perpendiculars[0].y,-perpendiculars[0].z };
-	perpendiculars[2] = Cross(plane.normal, perpendiculars[0]);
-	perpendiculars[3] = { -perpendiculars[2].x,-perpendiculars[2].y,-perpendiculars[2].z };
-
-	Vector3 points[4];
-	for (int32_t index = 0; index < 4; ++index) {
-		Vector3 extend = MultiplyPlane(2.0f, perpendiculars[index]);
-		Vector3 point = Add(center, extend);
-		points[index] = Transform(Transform(point, viewProjectionMatrix), viewportMatrix);
-	}
-
-	Novice::DrawLine((int)points[0].x, (int)points[0].y, (int)points[2].x, (int)points[2].y, WHITE);
-	Novice::DrawLine((int)points[0].x, (int)points[0].y, (int)points[3].x, (int)points[3].y, WHITE);
-	Novice::DrawLine((int)points[1].x, (int)points[1].y, (int)points[2].x, (int)points[2].y, WHITE);
-	Novice::DrawLine((int)points[1].x, (int)points[1].y, (int)points[3].x, (int)points[3].y, WHITE);
-}
-
-bool IsCollision(const Segment& s1, const Triangle& v2) {
-
-	Vector3 v01 = { v2.vertices[1].x - v2.vertices[0].x,v2.vertices[1].y - v2.vertices[0].y,v2.vertices[1].z - v2.vertices[0].z };
-	Vector3 v12 = { v2.vertices[2].x - v2.vertices[1].x,v2.vertices[2].y - v2.vertices[1].y,v2.vertices[2].z - v2.vertices[1].z };
-	Vector3 v20 = { v2.vertices[0].x - v2.vertices[2].x,v2.vertices[0].y - v2.vertices[2].y,v2.vertices[0].z - v2.vertices[2].z };
-
-	Vector3 normal = Normalize(Cross(v01, v12));
-	Plane plane = { normal,Dot(v2.vertices[0],normal) };
-
-	float dot = Dot(plane.normal, s1.diff);
-	if (dot == 0)
-	{
-		return false;
-	}
-
-	float tSenbun = (plane.distance - Dot(s1.origin, plane.normal)) / dot;
-
-	float t = ((v2.vertices[0].x * s1.diff.x) + (v2.vertices[0].y * s1.diff.y) + (v2.vertices[0].z * s1.diff.z)) / ((s1.diff.x * s1.diff.x) + (s1.diff.y * s1.diff.y) + (s1.diff.z * s1.diff.z));
-
-	Vector3 cp{};
-	cp.x = s1.origin.x + (t * s1.diff.x);
-	cp.y = s1.origin.y + (t * s1.diff.y);
-	cp.z = s1.origin.z + (t * s1.diff.z);
-
-	//cp - それぞれの頂点
-
-	Vector3 v0p = {};
-	v0p.x = cp.x - v2.vertices[0].x;
-	v0p.y = cp.y - v2.vertices[0].y;
-	v0p.z = cp.z - v2.vertices[0].z;
-
-	Vector3 v1p = {};
-	v1p.x = cp.x - v2.vertices[1].x;
-	v1p.y = cp.y - v2.vertices[1].y;
-	v1p.z = cp.z - v2.vertices[1].z;
-
-	Vector3 v2p = {};
-	v2p.x = cp.x - v2.vertices[2].x;
-	v2p.y = cp.y - v2.vertices[2].y;
-	v2p.z = cp.z - v2.vertices[2].z;
-
-
-
-	Vector3 cross01 = Cross(v01, v1p);
-	Vector3 cross12 = Cross(v12, v2p);
-	Vector3 cross20 = Cross(v20, v0p);
-
-	if (Dot(cross01, normal) >= 0.0f &&
-		Dot(cross12, normal) >= 0.0f &&
-		Dot(cross20, normal) >= 0.0f &&
-		tSenbun > 0 && tSenbun < 1) {
-		return true;
+	for (uint32_t i = 0; i < 4; i++) {
+		BottomScreen[i] = Transform(Transform(Bottom[i], viewProjectionMatrix), viewportMatrix);
+		TopScreen[i] = Transform(Transform(Top[i], viewProjectionMatrix), viewportMatrix);
 	}
 
 
-	return false;
+	Novice::DrawLine((int)BottomScreen[0].x, (int)BottomScreen[0].y, (int)BottomScreen[1].x, (int)BottomScreen[1].y, color);
+	Novice::DrawLine((int)BottomScreen[0].x, (int)BottomScreen[0].y, (int)BottomScreen[2].x, (int)BottomScreen[2].y, color);
+	Novice::DrawLine((int)BottomScreen[1].x, (int)BottomScreen[1].y, (int)BottomScreen[3].x, (int)BottomScreen[3].y, color);
+	Novice::DrawLine((int)BottomScreen[2].x, (int)BottomScreen[2].y, (int)BottomScreen[3].x, (int)BottomScreen[3].y, color);
+
+	Novice::DrawLine((int)TopScreen[0].x, (int)TopScreen[0].y, (int)TopScreen[1].x, (int)TopScreen[1].y, color);
+	Novice::DrawLine((int)TopScreen[0].x, (int)TopScreen[0].y, (int)TopScreen[2].x, (int)TopScreen[2].y, color);
+	Novice::DrawLine((int)TopScreen[1].x, (int)TopScreen[1].y, (int)TopScreen[3].x, (int)TopScreen[3].y, color);
+	Novice::DrawLine((int)TopScreen[2].x, (int)TopScreen[2].y, (int)TopScreen[3].x, (int)TopScreen[3].y, color);
+
+	Novice::DrawLine((int)TopScreen[0].x, (int)TopScreen[0].y, (int)BottomScreen[0].x, (int)BottomScreen[0].y, color);
+	Novice::DrawLine((int)TopScreen[1].x, (int)TopScreen[1].y, (int)BottomScreen[1].x, (int)BottomScreen[1].y, color);
+	Novice::DrawLine((int)TopScreen[2].x, (int)TopScreen[2].y, (int)BottomScreen[2].x, (int)BottomScreen[2].y, color);
+	Novice::DrawLine((int)TopScreen[3].x, (int)TopScreen[3].y, (int)BottomScreen[3].x, (int)BottomScreen[3].y, color);
 }
 
 
@@ -226,24 +129,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Vector3 cameraPosition = { 0.0f ,0.0f,-20.0f };
-	Vector3 cameraTranslate = { 0.0f,-1.0f,-6.49f };
-	Vector3 cameraRotate = { -0.16f,0.0f,0.0f };
-
-
-	Segment segment{ { 0.0f,0.5f,-1.0f} ,{0.0f,0.0f,2.0f} };
-
-	Triangle triangle = {
-		.vertices
-		{
-		{ -0.5f ,0.0f ,0.0f  },
-		{ 0.0f , 1.0f , 0.0f  },
-		{ 0.5f ,0.0f ,0.0f  }
-		}
+	AABB Box1 = {
+		.min{-0.5f,-0.5f,-0.5f },
+		.max{0.0f,0.0f,0.0f},
 	};
 
-	uint32_t Color = WHITE;
+	AABB Box2 = {
+		.min{0.2f,0.2f,0.2f },
+		.max{1.0f,1.0f,1.0f},
+	};
 
+	uint32_t color1 = WHITE;
+	uint32_t color2 = WHITE;
+
+	MyMath* myMath_ = new MyMath();
+
+	Vector3 cameraPosition = { 0.0f ,0.0f,-20.0f };
+	Vector3 cameraTranslate = { 0.0f,-1.0f,-6.49f };
+	Vector3 cameraRotate = { -0.26f,0.26f,0.0f };
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -258,51 +161,48 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		Matrix4x4 worldMatrix = myMath->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, cameraRotate, cameraTranslate);
-		Matrix4x4 cameraMatrix = myMath->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, cameraPosition);
-		Matrix4x4 viewMatrix = myMath->Inverse(cameraMatrix);
-		Matrix4x4 projectionMatrix = myMath->MakePerspectiveFovMatrix(0.45f, float(1280.0f) / float(720.0f), 0.1f, 100.0f);
-		Matrix4x4 WorldViewProjectionMatrix = myMath->Multiply(worldMatrix, myMath->Multiply(viewMatrix, projectionMatrix));
-		Matrix4x4 viewportMatrix = myMath->MakeViewportMatrix(0, 0, float(1280.0f), float(720.0f), 0.0f, 1.0f);
+		Box1.min.x = (std::min)(Box1.min.x, Box1.max.x);
+		Box1.max.x = (std::max)(Box1.min.x, Box1.max.x);
+		Box1.min.y = (std::min)(Box1.min.y, Box1.max.y);
+		Box1.max.y = (std::max)(Box1.min.y, Box1.max.y);
+		Box1.min.z = (std::min)(Box1.min.z, Box1.max.z);
+		Box1.max.z = (std::max)(Box1.min.z, Box1.max.z);
 
+
+		Matrix4x4 worldMatrix = myMath_->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, cameraRotate, cameraTranslate);
+		Matrix4x4 cameraMatrix = myMath_->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, cameraPosition);
+		Matrix4x4 viewMatrix = myMath_->Inverse(cameraMatrix);
+		Matrix4x4 projectionMatrix = myMath_->MakePerspectiveFovMatrix(0.45f, float(1280.0f) / float(720.0f), 0.1f, 100.0f);
+		Matrix4x4 WorldViewProjectionMatrix = myMath_->Multiply(worldMatrix, myMath_->Multiply(viewMatrix, projectionMatrix));
+		Matrix4x4 viewportMatrix = myMath_->MakeViewportMatrix(0, 0, float(1280.0f), float(720.0f), 0.0f, 1.0f);
 
 		DrawGrid(WorldViewProjectionMatrix, viewportMatrix);
 
-		DrawTriangle(triangle, WorldViewProjectionMatrix, viewportMatrix);
+		DrawaAABB(Box1, WorldViewProjectionMatrix, viewportMatrix, color1);
+		DrawaAABB(Box2, WorldViewProjectionMatrix, viewportMatrix, color2);
 
 
-
-
-		bool distanceFlag = IsCollision(segment, triangle);
-
-		if (distanceFlag == true) {
-			Color = RED;
+		if (IsCollision(Box1, Box2)) {
+			color2 = RED;
 		}
 		else {
-			Color = WHITE;
+			color2 = WHITE;
 		}
-
-		Vector3 start = Transform(Transform(segment.origin, WorldViewProjectionMatrix), viewportMatrix);
-		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), WorldViewProjectionMatrix), viewportMatrix);
-
-
-		Novice::DrawLine((int)start.x, (int)start.y, (int)end.x, (int)end.y, Color);
-
 
 
 		ImGui::Begin("window");
 		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
 		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
 
-		ImGui::DragFloat3("shaderCenter[0]", &segment.origin.x, 0.01f);
-		ImGui::DragFloat3("shaderRadius[0]", &segment.diff.x, 0.01f);
+		ImGui::DragFloat3("box1 min", &Box1.min.x, 0.01f);
+		ImGui::DragFloat3("box1 max", &Box1.max.x, 0.01f);
 
-		ImGui::DragFloat3("triangle 0", &triangle.vertices[0].x, 0.01f);
-		ImGui::DragFloat3("triangle 1", &triangle.vertices[1].x, 0.01f);
-		ImGui::DragFloat3("triangle 2", &triangle.vertices[2].x, 0.01f);
+		ImGui::DragFloat3("box2 min", &Box2.min.x, 0.01f);
+		ImGui::DragFloat3("box2 max", &Box2.max.x, 0.01f);
 
 
 		ImGui::End();
+
 
 		///
 		/// ↑更新処理ここまで
