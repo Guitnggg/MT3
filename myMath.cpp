@@ -1,44 +1,4 @@
 #include "MyMath.h"
-Vector3 MyMath::Add(const Vector3& v1, const Vector3& v2) {
-	Vector3 result{};
-
-	result.x = v1.x + v2.x;
-	result.y = v1.y + v2.y;
-	result.z = v1.z + v2.z;
-
-	return result;
-}
-
-Vector3 MyMath::Subtract(const Vector3& v1, const Vector3& v2) {
-	Vector3 result{};
-
-	result.x = v1.x - v2.x;
-	result.y = v1.y - v2.y;
-	result.z = v1.z - v2.z;
-
-	return result;
-}
-
-Vector3 MyMath::MultiplyFV(float f, const Vector3& v) {
-	Vector3 result{};
-
-	result.x = f * v.x;
-	result.y = f * v.y;
-	result.z = f * v.z;
-
-	return result;
-}
-
-Vector3 MyMath::MultiplyVV(const Vector3& v1, const Vector3& v2) {
-	Vector3 result{};
-
-	result.x = v1.x * v2.x;
-	result.y = v1.y * v2.y;
-	result.z = v1.z * v2.z;
-
-	return result;
-}
-
 
 Matrix4x4 MyMath::Inverse(const Matrix4x4& m) {
 	float A = m.m[0][0] * m.m[1][1] * m.m[2][2] * m.m[3][3]

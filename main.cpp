@@ -1,4 +1,5 @@
 #include <Novice.h>
+#include <Novice.h>
 #include <cstdint>
 #include <cassert>
 #define _USE_MATH_DEFINES
@@ -7,6 +8,7 @@
 
 
 #include<imgui.h>
+#include <algorithm>
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
 
@@ -26,19 +28,26 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	return result;
 }
 
+Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
+	Vector3 result{};
+	result.x = v1.x - v2.x;
+	result.y = v1.y - v2.y;
+	result.z = v1.z - v2.z;
+	return result;
+}
+float Length(const Vector3& v) {
+	float result;
+	result = (float)sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
+	return result;
+}
+
+
 struct AABB {
 	Vector3 min;
 	Vector3 max;
 };
 
-bool IsCollision(const AABB& aabb1, const AABB& aabb2) {
-	if ((aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) &&
-		(aabb1.min.y <= aabb2.max.y && aabb1.max.y >= aabb2.min.y) &&
-		(aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z)) {
-		return true;
-	}
-	return false;
-}
+
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
 	const float kGridHandleWidth = 2.0f;
@@ -73,6 +82,49 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		}
 		Novice::DrawLine((int)startScreen.x, (int)startScreen.y, (int)endScreen.x, (int)endScreen.y, color);
 
+	}
+}
+
+struct Sphere {
+	Vector3 center;
+	float radius;
+};
+
+void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	const uint32_t kSubdivision = 30;
+	const float kLonEvery = float(M_PI) / 8.0f;
+	const float kLatEvery = float(M_PI) / 8.0f;
+
+	float pi = float(M_PI);
+
+	Vector3 pointAB[kSubdivision] = {};
+	Vector3 pointAC[kSubdivision] = {};
+
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = -pi / 2.0f + kLatEvery * latIndex;//緯度 シ－タ
+
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+
+			float lon = lonIndex * kLonEvery;//経度　ファイ
+
+			Vector3 a{ sphere.center.x + sphere.radius * std::cos(lat) * std::cos(lon), sphere.center.y + sphere.radius * std::sin(lat),sphere.center.z + sphere.radius * std::cos(lat) * std::sin(lon) };
+			Vector3 b{ sphere.center.x + sphere.radius * std::cos(lat + lat) * std::cos(lon), sphere.center.y + sphere.radius * std::sin(lat + lat),sphere.center.z + sphere.radius * std::cos(lat + lat) * std::sin(lon) };
+			Vector3 c{ sphere.center.x + sphere.radius * std::cos(lat) * std::cos(lon + lon), sphere.center.y + sphere.radius * std::sin(lat), sphere.center.z + sphere.radius * std::cos(lat) * std::sin(lon + lon) };
+
+
+			Vector3 aScreen = Transform(Transform(a, viewProjectionMatrix), viewportMatrix);
+			Vector3 bScreen = Transform(Transform(b, viewProjectionMatrix), viewportMatrix);
+			Vector3 cScreen = Transform(Transform(c, viewProjectionMatrix), viewportMatrix);
+
+
+			if (pointAB[latIndex].x != 0 && pointAB[lonIndex].x != 0) {
+				Novice::DrawLine((int)aScreen.x, (int)aScreen.y, (int)pointAB[latIndex].x, (int)pointAB[latIndex].y, color);
+				Novice::DrawLine((int)aScreen.x, (int)aScreen.y, (int)pointAC[lonIndex].x, (int)pointAC[lonIndex].y, color);
+			}
+
+			pointAB[latIndex] = aScreen;
+			pointAC[lonIndex] = aScreen;
+		}
 	}
 }
 
@@ -119,6 +171,21 @@ void DrawaAABB(const AABB& aabb, const Matrix4x4& viewProjectionMatrix, const Ma
 }
 
 
+bool IsCollision(const AABB& aabb, const Sphere& sphere) {
+	Vector3 closestPoint{
+		std::clamp(sphere.center.x,aabb.min.x,aabb.max.x),
+		std::clamp(sphere.center.y,aabb.min.y,aabb.max.y),
+		std::clamp(sphere.center.z,aabb.min.z,aabb.max.z)
+	};
+	float distance = Length(Subtract(closestPoint, sphere.center));
+
+	if (distance <= sphere.radius) {
+		return true;
+	}
+	return false;
+}
+
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -129,15 +196,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	AABB Box1 = {
+	AABB Box = {
 		.min{-0.5f,-0.5f,-0.5f },
 		.max{0.0f,0.0f,0.0f},
 	};
 
-	AABB Box2 = {
-		.min{0.2f,0.2f,0.2f },
-		.max{1.0f,1.0f,1.0f},
-	};
+	Sphere Ball = { 0.5f,0.0f,0.5f,0.4f };
 
 	uint32_t color1 = WHITE;
 	uint32_t color2 = WHITE;
@@ -147,6 +211,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraPosition = { 0.0f ,0.0f,-20.0f };
 	Vector3 cameraTranslate = { 0.0f,-1.0f,-6.49f };
 	Vector3 cameraRotate = { -0.26f,0.26f,0.0f };
+
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -161,12 +226,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		Box1.min.x = (std::min)(Box1.min.x, Box1.max.x);
-		Box1.max.x = (std::max)(Box1.min.x, Box1.max.x);
-		Box1.min.y = (std::min)(Box1.min.y, Box1.max.y);
-		Box1.max.y = (std::max)(Box1.min.y, Box1.max.y);
-		Box1.min.z = (std::min)(Box1.min.z, Box1.max.z);
-		Box1.max.z = (std::max)(Box1.min.z, Box1.max.z);
+		Box.min.x = (std::min)(Box.min.x, Box.max.x);
+		Box.max.x = (std::max)(Box.min.x, Box.max.x);
+		Box.min.y = (std::min)(Box.min.y, Box.max.y);
+		Box.max.y = (std::max)(Box.min.y, Box.max.y);
+		Box.min.z = (std::min)(Box.min.z, Box.max.z);
+		Box.max.z = (std::max)(Box.min.z, Box.max.z);
 
 
 		Matrix4x4 worldMatrix = myMath_->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, cameraRotate, cameraTranslate);
@@ -178,11 +243,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawGrid(WorldViewProjectionMatrix, viewportMatrix);
 
-		DrawaAABB(Box1, WorldViewProjectionMatrix, viewportMatrix, color1);
-		DrawaAABB(Box2, WorldViewProjectionMatrix, viewportMatrix, color2);
+		DrawaAABB(Box, WorldViewProjectionMatrix, viewportMatrix, color1);
+		DrawSphere(Ball, WorldViewProjectionMatrix, viewportMatrix, color2);
 
 
-		if (IsCollision(Box1, Box2)) {
+		if (IsCollision(Box, Ball)) {
 			color2 = RED;
 		}
 		else {
@@ -194,15 +259,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
 		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
 
-		ImGui::DragFloat3("box1 min", &Box1.min.x, 0.01f);
-		ImGui::DragFloat3("box1 max", &Box1.max.x, 0.01f);
+		ImGui::DragFloat3("box min", &Box.min.x, 0.01f);
+		ImGui::DragFloat3("box max", &Box.max.x, 0.01f);
 
-		ImGui::DragFloat3("box2 min", &Box2.min.x, 0.01f);
-		ImGui::DragFloat3("box2 max", &Box2.max.x, 0.01f);
+		ImGui::DragFloat3("ball center", &Ball.center.x, 0.01f);
+		ImGui::DragFloat("ball radius", &Ball.radius, 0.01f);
 
 
 		ImGui::End();
-
 
 		///
 		/// ↑更新処理ここまで
