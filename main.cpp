@@ -1,36 +1,17 @@
 #include <Novice.h>
 #include "MyMath.h"
-#include <cstdint>
-#include <cassert>
 #include<imgui.h>
 
 const char kWindowTitle[] = "LE2C_16_タカキ_ケンゴ_MT3";
 
+MyMath* myMath_ = new MyMath();
 
-Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
-	Vector3 result{};
 
-	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
-	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];
-	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
-	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
-	assert(w != 0.0f);
-	result.x /= w;
-	result.y /= w;
-	result.z /= w;
+Vector3 operator*(const Vector3& v1, const Vector3& v2) { return myMath_->MultiplyVector(v1, v2); }
 
-	return result;
-}
+Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) { return myMath_->Multiply(m1, m2); }
 
-Vector3 Bezier(const Vector3& p0, const Vector3& p1, float t) {
-
-	Vector3 a = { t * p0.x ,t * p0.y ,t * p0.z };
-	Vector3 b = { (1.0f - t) * p1.x,(1.0f - t) * p1.y,(1.0f - t) * p1.z };
-	Vector3	c = { a.x + b.x,a.y + b.y,a.z + b.z };
-
-	return c;
-}
-
+Matrix4x4 operator+(const Matrix4x4& m1, const Matrix4x4& m2) { return myMath_->AddMatrix(m1, m2); }
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
 	const float kGridHandleWidth = 2.0f;
@@ -43,8 +24,8 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		Vector3 start{ x,0.0f,-kGridHandleWidth };
 		Vector3 end{ x,0.0f,kGridHandleWidth };
 
-		Vector3 startScreen = Transform(Transform(start, viewProjectionMatrix), viewportMatrix);
-		Vector3 endScreen = Transform(Transform(end, viewProjectionMatrix), viewportMatrix);
+		Vector3 startScreen = myMath_->Transform(myMath_->Transform(start, viewProjectionMatrix), viewportMatrix);
+		Vector3 endScreen = myMath_->Transform(myMath_->Transform(end, viewProjectionMatrix), viewportMatrix);
 
 		if (x == 0.0f) {
 			color = BLACK;
@@ -57,8 +38,8 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		Vector3 start{ -kGridHandleWidth,0.0f,z };
 		Vector3 end{ kGridHandleWidth,0.0f,z };
 
-		Vector3 startScreen = Transform(Transform(start, viewProjectionMatrix), viewportMatrix);
-		Vector3 endScreen = Transform(Transform(end, viewProjectionMatrix), viewportMatrix);
+		Vector3 startScreen = myMath_->Transform(myMath_->Transform(start, viewProjectionMatrix), viewportMatrix);
+		Vector3 endScreen = myMath_->Transform(myMath_->Transform(end, viewProjectionMatrix), viewportMatrix);
 
 		if (z == 0.0f) {
 			color = BLACK;
@@ -67,44 +48,6 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 
 	}
 }
-
-
-void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2,
-	const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
-
-	uint32_t link = 32;
-	uint32_t index = 0;
-
-	Vector3 p0Screen = Transform(Transform(controlPoint0, viewProjectionMatrix), viewportMatrix);
-	Vector3 p1Screen = Transform(Transform(controlPoint1, viewProjectionMatrix), viewportMatrix);
-	Vector3 p2Screen = Transform(Transform(controlPoint2, viewProjectionMatrix), viewportMatrix);
-
-	Vector3 a = Transform(Transform(controlPoint0, viewProjectionMatrix), viewportMatrix);
-
-	Novice::DrawEllipse((int)a.x, (int)a.y, 5, 5, 0.0f, BLACK, kFillModeSolid);
-	Novice::DrawEllipse((int)p1Screen.x, (int)p1Screen.y, 5, 5, 0.0f, BLACK, kFillModeSolid);
-	Novice::DrawEllipse((int)p2Screen.x, (int)p2Screen.y, 5, 5, 0.0f, BLACK, kFillModeSolid);
-
-
-	for (index = 0; index < link; index++) {
-		float t0 = index / float(link);
-		float t1 = index / float(link);
-
-		Vector3 bezier0 = Bezier(p0Screen, p1Screen, t0);
-		Vector3 bezier1 = Bezier(p1Screen, p2Screen, t1);
-		Vector3 p = Bezier(bezier0, bezier1, t0);
-
-		if (index == 0) {
-			Novice::DrawLine((int)p0Screen.x, (int)p0Screen.y, (int)a.x, (int)a.y, RED);
-		}
-		else {
-			Novice::DrawLine((int)a.x, (int)a.y, (int)p.x, (int)p.y, color);
-		}
-		a.x = p.x;
-		a.y = p.y;
-	}
-}
-
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -116,19 +59,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Vector3 controlPoint[3] = {
-		{-0.8f,0.58f,1.0f},
-		{1.76f,1.0f,-0.3f},
-		{0.94f,-0.7f,2.3f}
+	Vector3 translates[3]{
+		{0.2f,1.0f,0.0f},
+		{0.4f,0.0f,0.0f},
+		{0.3f,0.0f,0.0f}
+	};
+
+	Vector3 rotates[3]{
+		{0.0f,0.0f,-6.8f},
+		{0.0f,0.0f,-1.4f},
+		{0.0f,0.0f,0.0f}
+	};
+
+	Vector3 scales[3]{
+		{1.0f,1.0f,1.0f},
+		{1.0f,1.0f,1.0f},
+		{1.0f,1.0f,1.0f}
 	};
 
 	Vector3 cameraPosition = { 0.0f ,0.0f,-20.0f };
-	Vector3 cameraTranslate = { 0.0f,-1.0f,-6.49f };
-	Vector3 cameraRotate = { -0.26f,0.26f,0.0f };
+	Vector3 cameraTranslate = { 0.0f,-1.0f,-8.49f };
+	Vector3 cameraRotate = { -0.2f,0.0f,0.0f };
 
-	MyMath* myMath_ = new MyMath();
-
-
+	Sphere sphere[3] = {
+		{0.0,0.0f,0.0f ,0.1f},
+		{0.0,0.0f,0.0f ,0.1f},
+		{0.0,0.0f,0.0f ,0.1f}
+	};
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -143,27 +100,76 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
+
+
+		Matrix4x4 shoulder = myMath_->MakeAffineMatrix(scales[0], rotates[0], translates[0]);
+		Matrix4x4 elbow = myMath_->MakeAffineMatrix(scales[1], rotates[1], translates[1]);
+		Matrix4x4 hand = myMath_->MakeAffineMatrix(scales[2], rotates[2], translates[2]);
+
+
 		Matrix4x4 worldMatrix = myMath_->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, cameraRotate, cameraTranslate);
+		Matrix4x4 Ws = shoulder * worldMatrix;
+		Matrix4x4 We = elbow * Ws;
+		Matrix4x4 Wh = hand * We;
+
 		Matrix4x4 cameraMatrix = myMath_->MakeAffineMatrix({ 1.0f,1.0f,1.0f }, { 0.0f,0.0f,0.0f }, cameraPosition);
 		Matrix4x4 viewMatrix = myMath_->Inverse(cameraMatrix);
 		Matrix4x4 projectionMatrix = myMath_->MakePerspectiveFovMatrix(0.45f, float(1280.0f) / float(720.0f), 0.1f, 100.0f);
-		Matrix4x4 WorldViewProjectionMatrix = myMath_->Multiply(worldMatrix, myMath_->Multiply(viewMatrix, projectionMatrix));
+
+
+		Matrix4x4 WorldViewProjectionMatrix = worldMatrix * viewMatrix * projectionMatrix;
+		Matrix4x4 SWorldViewProjectionMatrix = Ws * viewMatrix * projectionMatrix;
+		Matrix4x4 EWorldViewProjectionMatrix = We * viewMatrix * projectionMatrix;
+		Matrix4x4 HWorldViewProjectionMatrix = Wh * viewMatrix * projectionMatrix;
+
+
 		Matrix4x4 viewportMatrix = myMath_->MakeViewportMatrix(0, 0, float(1280.0f), float(720.0f), 0.0f, 1.0f);
 
+		Vector3 shoulderScreen = myMath_->Transform(myMath_->Transform(sphere[0].center, SWorldViewProjectionMatrix), viewportMatrix);
+		Vector3 elbowScreen = myMath_->Transform(myMath_->Transform(sphere[1].center, EWorldViewProjectionMatrix), viewportMatrix);
+		Vector3 handScreen = myMath_->Transform(myMath_->Transform(sphere[2].center, HWorldViewProjectionMatrix), viewportMatrix);
 
-		DrawBezier(controlPoint[0], controlPoint[1], controlPoint[2], WorldViewProjectionMatrix, viewportMatrix, BLUE);
+
 
 		DrawGrid(WorldViewProjectionMatrix, viewportMatrix);
+
+
+		//sphere[0].center = { shoulderScreen.x,shoulderScreen.y,shoulderScreen.z };
+		//sphere[1].center = { elbowScreen.x,elbowScreen.y,elbowScreen.z };
+		//sphere[2].center = { handScreen.x,handScreen.y,handScreen.z };
+
+		myMath_->DrawSphere(sphere[0], SWorldViewProjectionMatrix, viewportMatrix, RED);
+		myMath_->DrawSphere(sphere[1], EWorldViewProjectionMatrix, viewportMatrix, GREEN);
+		myMath_->DrawSphere(sphere[2], HWorldViewProjectionMatrix, viewportMatrix, BLUE);
+
+		Novice::DrawLine((int)shoulderScreen.x, (int)shoulderScreen.y, (int)elbowScreen.x, (int)elbowScreen.y, WHITE);
+		Novice::DrawLine((int)elbowScreen.x, (int)elbowScreen.y, (int)handScreen.x, (int)handScreen.y, WHITE);
+
+
 
 		ImGui::Begin("window");
 		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
 		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
 
-		ImGui::DragFloat3("p0", &controlPoint[0].x, 0.1f);
-		ImGui::DragFloat3("p1", &controlPoint[1].x, 0.1f);
-		ImGui::DragFloat3("p2", &controlPoint[2].x, 0.1f);
+		ImGui::Text("Red");
+		ImGui::DragFloat3("transformRed", &translates[0].x, 0.01f);
+		ImGui::DragFloat3("rotateRed", &rotates[0].x, 0.01f);
+		ImGui::DragFloat3("scaleRed", &scales[0].x, 0.01f);
+
+		ImGui::Text("Green");
+		ImGui::DragFloat3("transformGreen", &translates[1].x, 0.01f);
+		ImGui::DragFloat3("rotateGreen", &rotates[1].x, 0.01f);
+		ImGui::DragFloat3("scaleGreen", &scales[1].x, 0.01f);
+
+		ImGui::Text("Blue");
+		ImGui::DragFloat3("transformBlue", &translates[2].x, 0.01f);
+		ImGui::DragFloat3("rotateBlue", &rotates[2].x, 0.01f);
+		ImGui::DragFloat3("scaleBlue", &scales[2].x, 0.01f);
+
+
 
 		ImGui::End();
+
 
 
 
